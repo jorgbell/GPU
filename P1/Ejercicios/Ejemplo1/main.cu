@@ -30,7 +30,8 @@ void addMatrix(float *a, float *b, float *c, int N)
 
 __global__ void addMatrixGPU(float *a, float *b, float *c, int N )
 {
-	....
+	int i,j;
+	i = threadIdx.x + blockDim.x * blockIdx.x;
 }
 
 int main(int argc, char *argv[])
@@ -64,19 +65,20 @@ int main(int argc, char *argv[])
 	t1 = wtime(); printf("Time CPU=%f\n", t1-t0);
 
 	/* Mallocs GPU */
-	cudaMalloc(...);
-	cudaMalloc(...);
-	cudaMalloc(...);
+	cudaMalloc((void **) &a_GPU, N*sizeof(float));
+	cudaMalloc((void **) &b_GPU, N*sizeof(float));
+	cudaMalloc((void **) &c_GPU, N*sizeof(float));
 
 	/* CPU->GPU */
-	cudaMemcpy(...);
-	cudaMemcpy(...);
+	cudaMemcpy(a_GPU, a, N*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(b_GPU, b, N*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(c_GPU, c, N*sizeof(float), cudaMemcpyHostToDevice);
 
 	/*****************/
 	/* Add Matrix GPU*/
 	/*****************/
-	dim3 dimBlock(...,...);
-	dim3 dimGrid(...,...);
+	dim3 dimBlock(256,1,1);
+	dim3 dimGrid(ceil(N/256.0)+1,1,1);
 	t0 = wtime();
 	addMatrixGPU<<<dimGrid,dimBlock>>>(a_GPU, b_GPU, c_GPU, N);
 	cudaThreadSynchronize();
@@ -84,7 +86,7 @@ int main(int argc, char *argv[])
 
 	/* GPU->CPU */
 	a_host  = (float *)malloc(sizeof(float)*N*N);
-	cudaMemcpy(...);
+	cudaMemcpy(a_host, c_GPU, N*sizeof(float), cudaMemcpyDeviceToHost);
 
 	/************/
 	/* Results  */
@@ -103,9 +105,9 @@ int main(int argc, char *argv[])
 	free(a_host);
 
 	/* Free GPU */
-	cudaFree(...);
-	cudaFree(...);
-	cudaFree(...);
+	cudaFree(a_GPU);
+	cudaFree(b_GPU);
+	cudaFree(c_GPU);
 
 
 	return(1);

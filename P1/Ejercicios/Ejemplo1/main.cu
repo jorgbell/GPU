@@ -30,8 +30,15 @@ void addMatrix(float *a, float *b, float *c, int N)
 
 __global__ void addMatrixGPU(float *a, float *b, float *c, int N )
 {
-	int i,j;
+	int i; //en este caso, i = j
+	int j, idx;
 	i = threadIdx.x + blockDim.x * blockIdx.x;
+	if(i<N){
+		for(j=0; j<N;j++){
+			idx = i*N+j;
+			a[idx]=b[idx]+c[idx];
+		}
+	}
 }
 
 int main(int argc, char *argv[])
@@ -81,7 +88,7 @@ int main(int argc, char *argv[])
 	dim3 dimGrid(ceil(N/256.0)+1,1,1);
 	t0 = wtime();
 	addMatrixGPU<<<dimGrid,dimBlock>>>(a_GPU, b_GPU, c_GPU, N);
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	t1 = wtime(); printf("Time GPU=%f\n", t1-t0);
 
 	/* GPU->CPU */

@@ -1,8 +1,25 @@
+////////////////////////////////////////////////////////////////////////////
+//
+// Copyright 1993-2014 NVIDIA Corporation.  All rights reserved.
+//
+// Please refer to the NVIDIA end user license agreement (EULA) associated
+// with this source code for terms and conditions that govern your use of
+// this software. Any use, reproduction, disclosure, or distribution of
+// this software and related documentation outside the terms of the EULA
+// is strictly prohibited.
+//
+////////////////////////////////////////////////////////////////////////////
+
+/* Template project which demonstrates the basics on how to setup a project
+* example application.
+* Host code.
+*/
 #include <stdio.h>
 #include "matrix_mul.h"
 
+
 // Thread block size
-#define BLOCK_SIZE 4 
+#define BLOCK_SIZE 16
 
 // Forward declaration of the device multiplication function
 __global__ void Muld(float*, float*, int, int, float*);
@@ -13,7 +30,7 @@ __global__ void Muld(float*, float*, int, int, float*);
 // wA is the width of A
 // wB is the width of B
 
-//export void Mul(float*, float*, int, int, int, float*);
+
 void Mul(float* A, float* B, int hA, int wA, int wB,
 	float* C)
 {
@@ -66,10 +83,10 @@ __global__ void Muld(float* A, float* B, int wA, int wB, float* C)
 	int ty = threadIdx.y;
 
 	// Index of the first sub-matrix of A processed by the block
-	int aBegin = ...;
+	int aBegin = wA * BLOCK_SIZE * by;
 
 	// Index of the last sub-matrix of A processed by the block
-	int aEnd = ...;
+	int aEnd = aBegin + wA - 1;
 
 	// Step size used to iterate through the sub-matrices of A
 	int aStep = BLOCK_SIZE;
@@ -95,8 +112,8 @@ __global__ void Muld(float* A, float* B, int wA, int wB, float* C)
 
 		// Load the matrices from global memory to shared memory;
 		// each thread loads one element of each matrix
-		As[ty][tx] = A[...];
-		Bs[ty][tx] = B[...];
+		As[ty][tx] = A[a + wA * ty + tx];
+		Bs[ty][tx] = B[b + wB * ty + tx];
 		// Synchronize to make sure the matrices are loaded
 		__syncthreads();
 
@@ -104,15 +121,16 @@ __global__ void Muld(float* A, float* B, int wA, int wB, float* C)
 		// each thread computes one element
 		// of the block sub-matrix
 		for (int k = 0; k < BLOCK_SIZE; ++k)
-			....
+			Csub += As[ty][k] * Bs[k][tx];
 
 		// Synchronize to make sure that the preceding
 		// computation is done before loading two new
 		// sub-matrices of A and B in the next iteration
 		__syncthreads();
 	}
-	
+
 	// Write the block sub-matrix to global memory;
 	// each thread writes one element
-	...
+	int c = wB * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+	C[c + wB * ty + tx] = Csub;
 }

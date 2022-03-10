@@ -18,11 +18,11 @@ void Mul(float* A, float* B, int hA, int wA, int wB,
 	float* Ad;
 	size = hA * wA * sizeof(float);
 	cudaMalloc((void**)&Ad, size);
-	cudaMemcpy(...);
+	cudaMemcpy(Ad, A, size, cudaMemcpyHostToDevice);
 	float* Bd;
 	size = wA * wB * sizeof(float);
 	cudaMalloc((void**)&Bd, size);
-	cudaMemcpy(...);
+	cudaMemcpy(Bd, B, size, cudaMemcpyHostToDevice);
 
 	// Allocate C on the device
 	float* Cd;
@@ -30,19 +30,22 @@ void Mul(float* A, float* B, int hA, int wA, int wB,
 	cudaMalloc((void**)&Cd, size);
 
 	// Compute the execution configuration
-	cublasSgemm( ...
-		...,				/* [m] */ 
-		..,				/* [n] */  
-		..,				/* [k] */ 
+    cublasHandle_t handle;
+	cublasSgemm( 
+		CUBLAS_OP_N,
+		CUBLAS_OP_N,
+		wA,				/* [m] */ 
+		hA,				/* [n] */  
+		wB,				/* [k] */ 
 		1,				/* alfa */ 
-		..., ...,			/* A[m][k], num columnas (lda) */ 
-		..., ...,			/* B[k][n], num columnas (ldb) */
+		Ad, wA,			/* A[m][k], num columnas (lda) */ 
+		Bd, wB,			/* B[k][n], num columnas (ldb) */
 		0,				/* beta */
-		..., ...			/* C[m][n], num columnas (ldc) */
+		Cd, wB			/* C[m][n], num columnas (ldc) */
 	);
 
 	// Read C from the device
-	cudaMemcpy(C, Cd, ..., ...);
+	cudaMemcpy(C, Cd, size, cudaMemcpyHostToDevice);
 
 	// Free device memory
 	cudaFree(Ad);

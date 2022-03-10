@@ -30,14 +30,12 @@ void addMatrix(float *a, float *b, float *c, int N)
 
 __global__ void addMatrixGPU(float *a, float *b, float *c, int N )
 {
-	int i; //en este caso, i = j
-	int j, idx;
-	i = threadIdx.x + blockDim.x * blockIdx.x;
-	if(i<N){
-		for(j=0; j<N;j++){
-			idx = i*N+j;
-			a[idx]=b[idx]+c[idx];
-		}
+	int idx;
+	int i = (blockDim.y * blockIdx.y) + threadIdx.y; //buscas la columna del bloque y la columna en la que se encuentra el thread dentro del bloque
+	int j = (blockDim.x * blockIdx.x) + threadIdx.x; //buscas la fila del bloque y la fila en la que se encuentra el thread dentro del bloque
+	if(i < N && j < N){ //hace lo mismo que en el addmatrixcpu
+		idx = i*N+j;
+		a[idx]=b[idx]+c[idx];
 	}
 }
 
@@ -72,28 +70,29 @@ int main(int argc, char *argv[])
 	t1 = wtime(); printf("Time CPU=%f\n", t1-t0);
 
 	/* Mallocs GPU */
-	cudaMalloc((void **) &a_GPU, N*sizeof(float));
-	cudaMalloc((void **) &b_GPU, N*sizeof(float));
-	cudaMalloc((void **) &c_GPU, N*sizeof(float));
+	cudaMalloc((void **) &a_GPU, N*N*sizeof(float));
+	cudaMalloc((void **) &b_GPU, N*N*sizeof(float));
+	cudaMalloc((void **) &c_GPU, N*N*sizeof(float));
 
 	/* CPU->GPU */
-	cudaMemcpy(a_GPU, a, N*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(b_GPU, b, N*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(c_GPU, c, N*sizeof(float), cudaMemcpyHostToDevice);
+	//cudaMemcpy(a_GPU, a, N*N*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(b_GPU, b, N*N*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(c_GPU, c, N*N*sizeof(float), cudaMemcpyHostToDevice);
 
 	/*****************/
 	/* Add Matrix GPU*/
 	/*****************/
-	dim3 dimBlock(256,1,1);
-	dim3 dimGrid(ceil(N/256.0)+1,1,1);
+	int nthreads = 32;
+	dim3 dimBlock(nthreads,nthreads,1);
+	dim3 dimGrid(ceil(N/(float)nthreads),ceil(N/(float)nthreads),1);
 	t0 = wtime();
 	addMatrixGPU<<<dimGrid,dimBlock>>>(a_GPU, b_GPU, c_GPU, N);
-	cudaDeviceSynchronize();
+	cudaThreadSynchronize();
 	t1 = wtime(); printf("Time GPU=%f\n", t1-t0);
 
 	/* GPU->CPU */
 	a_host  = (float *)malloc(sizeof(float)*N*N);
-	cudaMemcpy(a_host, c_GPU, N*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(a_host, c_GPU, N*N*sizeof(float), cudaMemcpyDeviceToHost);
 
 	/************/
 	/* Results  */
